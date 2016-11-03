@@ -29,6 +29,7 @@
 #include "../ijkplayer_internal.h"
 #include "../pipeline/ffpipeline_ffplay.h"
 #include "pipeline/ffpipeline_android.h"
+#include "libavformat/rtsp.h"
 
 IjkMediaPlayer *ijkmp_android_create(int(*msg_loop)(void*))
 {
@@ -60,6 +61,19 @@ void ijkmp_android_set_surface_l(JNIEnv *env, IjkMediaPlayer *mp, jobject androi
 
     SDL_VoutAndroid_SetAndroidSurface(env, mp->ffplayer->vout, android_surface);
     ffpipeline_set_surface(env, mp->ffplayer->pipeline, android_surface);
+}
+
+void ijkmp_android_send_command(JNIEnv *env, IjkMediaPlayer *mp, const char *scale)
+{
+    if (!mp || !mp->ffplayer || !mp->ffplayer->is || !mp->ffplayer->is->ic || !mp->ffplayer->is->ic->priv_data)
+        return;
+
+    AVFormatContext *av = mp->ffplayer->is->ic;
+    RTSPState *rt = av->priv_data;
+    const char *c_path = rt->control_uri;
+    ALOGV("sendCommand: path %s", c_path);
+    ff_rtsp_send_cmd_async(av, "PLAY", rt->control_uri, scale);
+
 }
 
 void ijkmp_android_set_surface(JNIEnv *env, IjkMediaPlayer *mp, jobject android_surface)
