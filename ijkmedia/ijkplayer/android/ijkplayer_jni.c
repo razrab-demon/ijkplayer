@@ -495,6 +495,30 @@ LABEL_RETURN:
 }
 
 static void
+IjkMediaPlayer_stepToNextFrame(JNIEnv *env, jobject thiz)
+{
+    MPTRACE("%s\n", __func__);
+    IjkMediaPlayer *mp = jni_get_media_player(env, thiz);
+    JNI_CHECK_GOTO(mp, env, NULL, "mpjni: stepToNextFrame: null mp", LABEL_RETURN);
+    ijkmp_android_step_to_next_frame(env, mp);
+
+LABEL_RETURN:
+    ijkmp_dec_ref_p(&mp);
+}
+
+static void
+IjkMediaPlayer_stepToPreviousFrame(JNIEnv *env, jobject thiz)
+{
+    MPTRACE("%s\n", __func__);
+    IjkMediaPlayer *mp = jni_get_media_player(env, thiz);
+    JNI_CHECK_GOTO(mp, env, NULL, "mpjni: stepToPreviousFrame: null mp", LABEL_RETURN);
+    ijkmp_android_step_to_previous_frame(env, mp);
+
+LABEL_RETURN:
+    ijkmp_dec_ref_p(&mp);
+}
+
+static void
 IjkMediaPlayer_setOption(JNIEnv *env, jobject thiz, jint category, jobject name, jobject value)
 {
     MPTRACE("%s\n", __func__);
@@ -1034,6 +1058,8 @@ static JNINativeMethod g_methods[] = {
     { "setVolume",              "(FF)V",    (void *) IjkMediaPlayer_setVolume },
     { "getAudioSessionId",      "()I",      (void *) IjkMediaPlayer_getAudioSessionId },
     { "_sendCommand",           "(Ljava/lang/String;)V", (void *) IjkMediaPlayer_sendCommand },
+    { "_stepToNextFrame",       "()V",      (void *) IjkMediaPlayer_stepToNextFrame },
+    { "_stepToPreviousFrame",   "()V",      (void *) IjkMediaPlayer_stepToPreviousFrame },
     { "native_init",            "()V",      (void *) IjkMediaPlayer_native_init },
     { "native_setup",           "(Ljava/lang/Object;)V", (void *) IjkMediaPlayer_native_setup },
     { "native_finalize",        "()V",      (void *) IjkMediaPlayer_native_finalize },

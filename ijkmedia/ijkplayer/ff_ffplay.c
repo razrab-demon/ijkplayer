@@ -937,7 +937,7 @@ static void toggle_pause(FFPlayer *ffp, int pause_on)
 // FFP_MERGE: toggle_mute
 // FFP_MERGE: update_volume
 
-static void step_to_next_frame_l(FFPlayer *ffp)
+void step_to_next_frame_l(FFPlayer *ffp)
 {
     VideoState *is = ffp->is;
     /* if the stream is paused unpause it, then step */

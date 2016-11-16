@@ -63,6 +63,27 @@ void ijkmp_android_set_surface_l(JNIEnv *env, IjkMediaPlayer *mp, jobject androi
     ffpipeline_set_surface(env, mp->ffplayer->pipeline, android_surface);
 }
 
+void ijkmp_android_step_to_next_frame(JNIEnv *env, IjkMediaPlayer *mp)
+{
+    if (!mp || !mp->ffplayer)
+        return;
+
+    ALOGV("ffplay step to next frame");
+    step_to_next_frame_l(mp->ffplayer);
+
+}
+
+void ijkmp_android_step_to_previous_frame(JNIEnv *env, IjkMediaPlayer *mp)
+{
+    if (!mp || !mp->ffplayer)
+        return;
+
+    ALOGV("ffplay step to next frame");
+    ijkmp_android_send_command(env, mp, "Scale:-1 \r\n");
+    step_to_next_frame_l(mp->ffplayer);
+
+}
+
 void ijkmp_android_send_command(JNIEnv *env, IjkMediaPlayer *mp, const char *scale)
 {
     if (!mp || !mp->ffplayer || !mp->ffplayer->is || !mp->ffplayer->is->ic || !mp->ffplayer->is->ic->priv_data)
