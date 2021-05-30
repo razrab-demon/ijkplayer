@@ -1,5 +1,6 @@
 /*
  * Input async protocol.
+ * Copyright (c) 2015 Bilibili
  * Copyright (c) 2015 Zhang Rui <bbcallen@gmail.com>
  *
  * This file is part of FFmpeg.
@@ -83,7 +84,7 @@ typedef struct Context {
     /* options */
     int64_t         forwards_capacity;
     int64_t         backwards_capacity;
-    int64_t         app_ctx_intptr;
+    char *          app_ctx_intptr;
     AVApplicationContext *app_ctx;
 } Context;
 
@@ -307,8 +308,8 @@ static int async_open(URLContext *h, const char *arg, int flags, AVDictionary **
         goto fifo_fail;
 
     if (c->app_ctx_intptr) {
-        c->app_ctx = (AVApplicationContext *)(intptr_t)c->app_ctx_intptr;
-        av_dict_set_int(options, "ijkapplication", c->app_ctx_intptr, 0);
+        c->app_ctx = (AVApplicationContext *)av_dict_strtoptr(c->app_ctx_intptr);
+        av_dict_set_intptr(options, "ijkapplication", (uintptr_t )c->app_ctx, 0);
     }
     /* wrap interrupt callback */
     c->interrupt_callback = h->interrupt_callback;
@@ -534,7 +535,7 @@ static const AVOption options[] = {
         OFFSET(forwards_capacity),  AV_OPT_TYPE_INT64, {.i64 = 128 * 1024}, 128 * 1024, 128 * 1024 * 1024, D },
     { "async-backwards-capacity",   "max bytes that may be seek backward without seeking in inner protocol",
         OFFSET(backwards_capacity), AV_OPT_TYPE_INT64, {.i64 = 128 * 1024}, 128 * 1024, 128 * 1024 * 1024, D },
-    { "ijkapplication", "AVApplicationContext", OFFSET(app_ctx_intptr), AV_OPT_TYPE_INT64, { .i64 = 0 }, INT64_MIN, INT64_MAX, .flags = D },
+    { "ijkapplication", "AVApplicationContext", OFFSET(app_ctx_intptr), AV_OPT_TYPE_STRING, { .str = 0 }, 0, 0, .flags = D },
     {NULL},
 };
 

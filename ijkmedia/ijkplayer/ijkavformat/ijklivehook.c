@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2015 Bilibili
  * Copyright (c) 2015 Zhang Rui <bbcallen@gmail.com>
  *
  * This file is part of ijkPlayer.
@@ -38,7 +39,7 @@ typedef struct {
 
     /* options */
     AVDictionary   *open_opts;
-    int64_t         app_ctx_intptr;
+    char *         app_ctx_intptr;
     AVApplicationContext *app_ctx;
 } Context;
 
@@ -127,6 +128,8 @@ static int open_inner(AVFormatContext *avf)
     AVFormatContext *new_avf    = NULL;
     int ret = -1;
     int i   = 0;
+    AVDictionaryEntry *t = NULL;
+    int fps_flag = 0;
 
     new_avf = avformat_alloc_context();
     if (!new_avf) {
@@ -142,6 +145,14 @@ static int open_inner(AVFormatContext *avf)
     av_dict_set_int(&tmp_opts, "analyzeduration",   avf->max_analyze_duration, 0);
     av_dict_set_int(&tmp_opts, "fpsprobesize",      avf->fps_probe_size, 0);
     av_dict_set_int(&tmp_opts, "max_ts_probe",      avf->max_ts_probe, 0);
+
+    t = av_dict_get(tmp_opts, "skip-calc-frame-rate", NULL, AV_DICT_MATCH_CASE);
+    if (t) {
+        fps_flag = (int) strtol(t->value, NULL, 10);
+        if (fps_flag > 0) {
+            av_dict_set_int(&new_avf->metadata, "skip-calc-frame-rate", fps_flag, 0);
+        }
+    }
 
     new_avf->interrupt_callback = avf->interrupt_callback;
     ret = avformat_open_input(&new_avf, c->io_control.url, NULL, &tmp_opts);
@@ -180,7 +191,7 @@ static int ijklivehook_read_header(AVFormatContext *avf, AVDictionary **options)
     const char *inner_url   = NULL;
     int         ret         = -1;
 
-    c->app_ctx = (AVApplicationContext *)(intptr_t)c->app_ctx_intptr;
+    c->app_ctx = (AVApplicationContext *)av_dict_strtoptr(c->app_ctx_intptr);
     av_strstart(avf->filename, "ijklivehook:", &inner_url);
 
     c->io_control.size = sizeof(c->io_control);
@@ -197,6 +208,11 @@ static int ijklivehook_read_header(AVFormatContext *avf, AVDictionary **options)
         av_dict_copy(&c->open_opts, *options, 0);
 
     c->io_control.retry_counter = 0;
+    ret = ijkurlhook_call_inject(avf);
+    if (ret) {
+        ret = AVERROR_EXIT;
+        goto fail;
+    }
     ret = open_inner(avf);
     while (ret < 0) {
         // no EOF in live mode
@@ -276,7 +292,7 @@ fail:
 #define D AV_OPT_FLAG_DECODING_PARAM
 
 static const AVOption options[] = {
-    { "ijkapplication", "AVApplicationContext", OFFSET(app_ctx_intptr), AV_OPT_TYPE_INT64, { .i64 = 0 }, INT64_MIN, INT64_MAX, .flags = D },
+    { "ijkapplication", "AVApplicationContext", OFFSET(app_ctx_intptr), AV_OPT_TYPE_STRING, { .str = NULL }, 0, 0, .flags = D },
     { NULL }
 };
 

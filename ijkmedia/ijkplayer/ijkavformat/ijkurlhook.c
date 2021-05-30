@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2015 Bilibili
  * Copyright (c) 2015 Zhang Rui <bbcallen@gmail.com>
  *
  * This file is part of ijkPlayer.
@@ -45,7 +46,7 @@ typedef struct Context {
     int             segment_index;
     int64_t         test_fail_point;
     int64_t         test_fail_point_next;
-    int64_t         app_ctx_intptr;
+    char*         app_ctx_intptr;
     AVApplicationContext *app_ctx;
 } Context;
 
@@ -140,7 +141,7 @@ static int ijkurlhook_init(URLContext *h, const char *arg, int flags, AVDictiona
     if (options)
         av_dict_copy(&c->inner_options, *options, 0);
 
-    av_dict_set_int(&c->inner_options, "ijkapplication", c->app_ctx_intptr, 0);
+    av_dict_set_intptr(&c->inner_options, "ijkapplication", (uintptr_t )c->app_ctx, 0);
     av_dict_set_int(&c->inner_options, "ijkinject-segment-index", c->segment_index, 0);
 
     c->app_io_ctrl.size = sizeof(c->app_io_ctrl);
@@ -161,7 +162,7 @@ static int ijktcphook_open(URLContext *h, const char *arg, int flags, AVDictiona
     Context *c = h->priv_data;
     int ret = 0;
 
-    c->app_ctx = (AVApplicationContext *)(intptr_t)c->app_ctx_intptr;
+    c->app_ctx = (AVApplicationContext *)av_dict_strtoptr(c->app_ctx_intptr);
     c->scheme = "ijktcphook:";
     c->inner_scheme = "tcp:";
     ret = ijkurlhook_init(h, arg, flags, options);
@@ -239,6 +240,7 @@ static int ijkhttphook_reconnect_at(URLContext *h, int64_t offset)
     AVDictionary *extra_opts = NULL;
 
     av_dict_set_int(&extra_opts, "offset", offset, 0);
+    av_dict_set_int(&extra_opts, "dns_cache_clear", 1, 0);
     ret = ijkurlhook_reconnect(h, extra_opts);
     av_dict_free(&extra_opts);
     return ret;
@@ -249,9 +251,12 @@ static int ijkhttphook_open(URLContext *h, const char *arg, int flags, AVDiction
     Context *c = h->priv_data;
     int ret = 0;
 
-    c->app_ctx = (AVApplicationContext *)(intptr_t)c->app_ctx_intptr;
+    c->app_ctx = (AVApplicationContext *)av_dict_strtoptr(c->app_ctx_intptr);
     c->scheme = "ijkhttphook:";
-    c->inner_scheme = "http:";
+    if (av_stristart(arg, "ijkhttphook:https:", NULL))
+        c->inner_scheme = "https:";
+    else
+        c->inner_scheme = "http:";
 
     ret = ijkurlhook_init(h, arg, flags, options);
     if (ret)
@@ -281,10 +286,8 @@ static int ijkhttphook_open(URLContext *h, const char *arg, int flags, AVDiction
             goto fail;
 
         av_log(h, AV_LOG_INFO, "%s: will reconnect at start\n", __func__);
-        ret = ijkurlhook_reconnect(h, NULL);
+        ret = ijkhttphook_reconnect_at(h, 0);
         av_log(h, AV_LOG_INFO, "%s: did reconnect at start: %d\n", __func__, ret);
-        if (ret)
-            c->app_io_ctrl.retry_counter++;
     }
 
 fail:
@@ -414,7 +417,7 @@ fail:
 static const AVOption ijktcphook_options[] = {
     { "ijktcphook-test-fail-point",     "test fail point, in bytes",
         OFFSET(test_fail_point),        AV_OPT_TYPE_INT,   {.i64 = 0}, 0,         INT_MAX, D },
-    { "ijkapplication", "AVApplicationContext", OFFSET(app_ctx_intptr), AV_OPT_TYPE_INT64, { .i64 = 0 }, INT64_MIN, INT64_MAX, .flags = D },
+    { "ijkapplication", "AVApplicationContext", OFFSET(app_ctx_intptr), AV_OPT_TYPE_STRING, { .str = NULL }, 0, 0, .flags = D },
 
     { NULL }
 };
@@ -424,8 +427,7 @@ static const AVOption ijkhttphook_options[] = {
         OFFSET(segment_index),          AV_OPT_TYPE_INT,   {.i64 = 0}, 0,         INT_MAX, D },
     { "ijkhttphook-test-fail-point",    "test fail point, in bytes",
         OFFSET(test_fail_point),        AV_OPT_TYPE_INT,   {.i64 = 0}, 0,         INT_MAX, D },
-    { "ijkapplication", "AVApplicationContext", OFFSET(app_ctx_intptr), AV_OPT_TYPE_INT64, { .i64 = 0 }, INT64_MIN, INT64_MAX, .flags = D },
-
+    { "ijkapplication", "AVApplicationContext", OFFSET(app_ctx_intptr), AV_OPT_TYPE_STRING, { .str = NULL }, 0, 0, .flags = D },
     { NULL }
 };
 
